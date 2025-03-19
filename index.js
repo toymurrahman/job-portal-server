@@ -33,6 +33,7 @@ async function run() {
 
 
     const jobsCollection = client.db("basic-job-portal").collection("jobs");
+    const jobsApplicationCollection = client.db("basic-job-portal").collection("job-applications");
 
     app.get('/jobs', async (req, res) => {
       const cursor = jobsCollection.find({});
@@ -49,8 +50,12 @@ async function run() {
     });
 
 
-
-
+// job application API
+    app.post('/job-applications', async (req, res) => {
+      const jobApplication = req.body;
+      const result = await jobsApplicationCollection.insertOne(jobApplication);
+      res.send(result);
+    })
 
 
   } finally {
