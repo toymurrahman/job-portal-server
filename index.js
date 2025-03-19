@@ -56,6 +56,31 @@ async function run() {
       const result = await jobsApplicationCollection.insertOne(jobApplication);
       res.send(result);
     })
+    app.get('/job-applications/', async (req, res) => {
+      const email = req.query.email;
+      const query = { applicant_email: email };
+      const result = await jobsApplicationCollection.find(query).toArray();
+
+      // a way of aggregate data
+      for (const jobApplication of result) {
+        const anotherQuery = { _id: new ObjectId(jobApplication.job_id) };
+        const job = await jobsCollection.findOne(anotherQuery);
+        if (job) {
+         
+          jobApplication.title = job.title;
+          jobApplication.company = job.company;
+          jobApplication.salaryRange = job.salaryRange;
+          // jobApplication.salaryRange.min = job.salaryRange.min;
+          jobApplication.location = job.location;
+          jobApplication.description = job.description;
+          jobApplication.company_logo = job.company_logo;
+         
+       
+        }
+      }
+
+      res.send(result);
+    } )
 
 
   } finally {
