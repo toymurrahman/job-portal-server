@@ -49,7 +49,11 @@ async function run() {
       res.send(job);
     });
 
-
+    app.post('/jobs', async (req, res) => {
+      const newJob = req.body;
+      const result = await jobsCollection.insertOne(newJob);
+      res.send(result);
+    });
 // job application API
     app.post('/job-applications', async (req, res) => {
       const jobApplication = req.body;
@@ -74,11 +78,8 @@ async function run() {
           jobApplication.location = job.location;
           jobApplication.description = job.description;
           jobApplication.company_logo = job.company_logo;
-         
-       
         }
       }
-
       res.send(result);
     } )
 
