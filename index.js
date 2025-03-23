@@ -1,16 +1,17 @@
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
-const express = require('express');
-const cors = require('cors');
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const express = require("express");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const app = express();
 const port = process.env.PORT || 3000;
-require('dotenv').config();
-
+require("dotenv").config();
 
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
-// 
-
+//
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.eahhj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -20,7 +21,7 @@ const client = new MongoClient(uri, {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
 async function run() {
@@ -29,17 +30,37 @@ async function run() {
     await client.connect();
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
 
     const jobsCollection = client.db("basic-job-portal").collection("jobs");
-    const jobsApplicationCollection = client.db("basic-job-portal").collection("job-applications");
+    const jobsApplicationCollection = client
+      .db("basic-job-portal")
+      .collection("job-applications");
 
-    app.get('/jobs', async (req, res) => {
+    // Auth API
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.JWT_SECRET, {
+        expiresIn: "12h",
+      });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: false,
+          // sameSite: "none",
+          // maxAge: 1000 * 60 * 60 * 12
+        })
+        .send({ success: true });
+    });
+
+    // job API
+    app.get("/jobs", async (req, res) => {
       const email = req.query.email;
       let query = {};
       if (email) {
-        query = { hr_email: email }
+        query = { hr_email: email };
       }
 
       const cursor = jobsCollection.find(query);
@@ -47,34 +68,33 @@ async function run() {
       res.send(jobs);
     });
 
-
-    app.get('/jobs/:id', async (req, res) => {
+    app.get("/jobs/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const job = await jobsCollection.findOne(query);
       res.send(job);
     });
 
-    app.post('/jobs', async (req, res) => {
+    app.post("/jobs", async (req, res) => {
       const newJob = req.body;
       const result = await jobsCollection.insertOne(newJob);
       res.send(result);
     });
-// job application API
-    app.post('/job-applications', async (req, res) => {
+    // job application API
+    app.post("/job-applications", async (req, res) => {
       const jobApplication = req.body;
       const result = await jobsApplicationCollection.insertOne(jobApplication);
       res.send(result);
-    })
+    });
 
-    app.get('/job-applications/jobs/:job_id', async (req, res) => {
+    app.get("/job-applications/jobs/:job_id", async (req, res) => {
       const jobId = req.params.job_id;
       const query = { job_id: jobId };
       const result = await jobsApplicationCollection.find(query).toArray();
       res.send(result);
-    } )
+    });
 
-    app.get('/job-applications/', async (req, res) => {
+    app.get("/job-applications/", async (req, res) => {
       const email = req.query.email;
       const query = { applicant_email: email };
       const result = await jobsApplicationCollection.find(query).toArray();
@@ -84,7 +104,6 @@ async function run() {
         const anotherQuery = { _id: new ObjectId(jobApplication.job_id) };
         const job = await jobsCollection.findOne(anotherQuery);
         if (job) {
-         
           jobApplication.title = job.title;
           jobApplication.company = job.company;
           jobApplication.salaryRange = job.salaryRange;
@@ -95,25 +114,17 @@ async function run() {
         }
       }
       res.send(result);
-    } )
-
-
+    });
   } finally {
     // Ensures that the client will close when you finish/error
-   
   }
 }
 run().catch(console.dir);
 
-
-
-
-
-
-app.get('/', (req, res) => {
-  res.send('Job lagbe hae?');
+app.get("/", (req, res) => {
+  res.send("Job lagbe hae?");
 });
 
 app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
+  console.log(`Server is running on port ${port}`);
 });
