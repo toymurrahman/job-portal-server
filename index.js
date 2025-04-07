@@ -66,11 +66,18 @@ async function run() {
         .cookie("token", token, {
           httpOnly: true,
           secure: false,
-          // sameSite: "none",
-          // maxAge: 1000 * 60 * 60 * 12
+          
         })
         .send({ success: true });
     });
+
+    // logout
+    app.post('/logout', (req, res) =>{
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: false,
+      }).send({success: true})
+    } )
 
     // job API
     app.get("/jobs", async (req, res) => {
