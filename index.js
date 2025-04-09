@@ -7,30 +7,32 @@ const app = express();
 const port = process.env.PORT || 3000;
 require("dotenv").config();
 
-app.use(cors(
-  {
-    origin: ["http://localhost:5173", "https://job-portal-cf73e.web.app", "https://job-portal-cf73e.firebaseapp.com"],
-    credentials: true
-  }
-));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://job-portal-cf73e.web.app",
+      "https://job-portal-cf73e.firebaseapp.com",
+    ],
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
-
 
 const verifyToken = (req, res, next) => {
   const token = req.cookies?.token;
   if (!token) {
-    return res.status(401).send({message: "Invalid toke"})
+    return res.status(401).send({ message: "Invalid toke" });
   }
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err,decoded) => {
-    if (err){
-      return res.status(401).send({message: "Invalid toke"})
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "Invalid toke" });
     }
     req.user = decoded;
     next();
-  })
-}
-
+  });
+};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.eahhj.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -49,12 +51,14 @@ async function run() {
     // await client.connect();
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
-   
 
     const jobsCollection = client.db("basic-job-portal").collection("jobs");
     const jobsApplicationCollection = client
       .db("basic-job-portal")
       .collection("job-applications");
+    const productCollection = client
+      .db("basic-job-portal")
+      .collection("products");
 
     // Auth API
     app.post("/jwt", async (req, res) => {
@@ -67,19 +71,20 @@ async function run() {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-          
         })
         .send({ success: true });
     });
 
     // logout
-    app.post('/logout', (req, res) =>{
-      res.clearCookie("token", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-      }).send({success: true})
-    } )
+    app.post("/logout", (req, res) => {
+      res
+        .clearCookie("token", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true });
+    });
 
     // job API
     app.get("/jobs", async (req, res) => {
@@ -92,6 +97,23 @@ async function run() {
       const cursor = jobsCollection.find(query);
       const jobs = await cursor.toArray();
       res.send(jobs);
+    });
+
+    // Pagination er jonno Products
+    app.get("/products", async (req, res) => {
+      const page = parseInt(req.query.page);
+      const size = parseInt(req.query.size);
+      const products = await productCollection
+        .find()
+        .skip(page * size)
+        .limit(size)
+        .toArray();
+      res.send(products);
+    });
+
+    app.get("/productsCount", async (req, res) => {
+      const count = await productCollection.estimatedDocumentCount();
+      res.send({ count });
     });
 
     app.get("/jobs/:id", async (req, res) => {
@@ -107,7 +129,7 @@ async function run() {
       res.send(result);
     });
     // job application API
-    app.post("/job-applications",  async (req, res) => {
+    app.post("/job-applications", async (req, res) => {
       const jobApplication = req.body;
       const result = await jobsApplicationCollection.insertOne(jobApplication);
       res.send(result);
@@ -124,8 +146,8 @@ async function run() {
       const email = req.query.email;
       const query = { applicant_email: email };
 
-      if(req.user.email !== email) {
-        return res.status(403).send({message: "Forbidden"})
+      if (req.user.email !== email) {
+        return res.status(403).send({ message: "Forbidden" });
       }
 
       const result = await jobsApplicationCollection.find(query).toArray();
