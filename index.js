@@ -89,31 +89,18 @@ async function run() {
     // job API
     app.get("/jobs", async (req, res) => {
       const email = req.query.email;
+      const sort = req.query?.sort;
       let query = {};
+      let sortQuery = {};
       if (email) {
         query = { hr_email: email };
       }
-
-      const cursor = jobsCollection.find(query);
+      if(sort == "true"){
+        sortQuery = { 'salaryRange.min': -1 };
+      }
+      const cursor = jobsCollection.find(query).sort(sortQuery);
       const jobs = await cursor.toArray();
       res.send(jobs);
-    });
-
-    // Pagination er jonno Products
-    app.get("/products", async (req, res) => {
-      const page = parseInt(req.query.page);
-      const size = parseInt(req.query.size);
-      const products = await productCollection
-        .find()
-        .skip(page * size)
-        .limit(size)
-        .toArray();
-      res.send(products);
-    });
-
-    app.get("/productsCount", async (req, res) => {
-      const count = await productCollection.estimatedDocumentCount();
-      res.send({ count });
     });
 
     app.get("/jobs/:id", async (req, res) => {
@@ -167,6 +154,25 @@ async function run() {
       }
       res.send(result);
     });
+
+
+        // Pagination er jonno Products
+        app.get("/products", async (req, res) => {
+          const page = parseInt(req.query.page);
+          const size = parseInt(req.query.size);
+          const products = await productCollection
+            .find()
+            .skip(page * size)
+            .limit(size)
+            .toArray();
+          res.send(products);
+        });
+    
+        app.get("/productsCount", async (req, res) => {
+          const count = await productCollection.estimatedDocumentCount();
+          res.send({ count });
+        });
+    
   } finally {
     // Ensures that the client will close when you finish/error
   }
